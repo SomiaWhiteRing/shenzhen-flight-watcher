@@ -1,0 +1,5 @@
+{
+  "PUSHPLUS_TOKEN": "你的PushPlus Token",
+  "FLIGHT_NUMBER": "ZH****",
+  "TARGET_URL": "https://www.shenzhenair.com/szair_B2C/flightsearch.action?hcType=DC&orgCity=**&orgCityCode=PEK&dstCity=**&dstCityCode=JJN&orgDate=**&dstDate=**"
+}
