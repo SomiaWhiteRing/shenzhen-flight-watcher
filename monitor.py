@@ -34,9 +34,6 @@ WAIT_FOR_CONTAINER_TIMEOUT = 60000 # 60 seconds
 WAIT_FOR_ROW_TIMEOUT = 30000 # 30 seconds
 # --- 超时设置结束 ---
 
-# --- 检测是否在 GitHub Actions 环境 ---
-IS_GITHUB_ACTIONS = os.environ.get('GITHUB_ACTIONS') == 'true'
-
 # --- 函数定义 ---
 
 def load_config() -> Optional[Dict[str, Any]]:
@@ -46,7 +43,7 @@ def load_config() -> Optional[Dict[str, Any]]:
     config['FLIGHT_NUMBER'] = os.environ.get('FLIGHT_NUMBER')
     config['TARGET_URL'] = os.environ.get('TARGET_URL')
 
-    if not IS_GITHUB_ACTIONS and os.path.exists(CONFIG_FILE_LOCAL):
+    if os.path.exists(CONFIG_FILE_LOCAL):
          logging.info(f"本地环境，尝试从 {CONFIG_FILE_LOCAL} 加载或补充配置...")
          try:
              with open(CONFIG_FILE_LOCAL, 'r', encoding='utf-8') as f: local_config = json.load(f)
@@ -56,8 +53,7 @@ def load_config() -> Optional[Dict[str, Any]]:
              logging.info(f"成功从 {CONFIG_FILE_LOCAL} 加载或补充配置。")
          except Exception as e: logging.error(f"读取本地配置文件 {CONFIG_FILE_LOCAL} 时出错: {e}"); return None
     elif not all(v for k, v in config.items() if k in ['PUSHPLUS_TOKEN', 'FLIGHT_NUMBER', 'TARGET_URL']):
-         if not IS_GITHUB_ACTIONS: logging.warning(f"本地配置文件 {CONFIG_FILE_LOCAL} 不存在，将依赖环境变量。")
-         else: logging.info("GitHub Actions 环境，依赖环境变量或 Secrets。")
+         logging.warning(f"本地配置文件 {CONFIG_FILE_LOCAL} 不存在，将依赖环境变量。")
 
     if not config.get('PUSHPLUS_TOKEN'): logging.error("错误：未找到 PUSHPLUS_TOKEN"); return None
     if not config.get('FLIGHT_NUMBER'): logging.error("错误：未找到 FLIGHT_NUMBER"); return None
@@ -81,7 +77,7 @@ async def fetch_html_with_playwright(target_url: str, base_url: str) -> Optional
         page = None
         response = None
         try:
-            run_headless = IS_GITHUB_ACTIONS
+            run_headless = False  # 强制关闭 headless 模式
             browser = await p.chromium.launch(
                 headless=run_headless,
                 args=[
@@ -294,7 +290,7 @@ def send_notification(token: str, title: str, content: str, template: str = 'htm
 
 # --- 主程序异步化 ---
 async def main():
-    logging.info(f"--- 开始执行深圳航空机票价格监控脚本 (GitHub Actions: {IS_GITHUB_ACTIONS}) ---")
+    logging.info(f"--- 开始执行深圳航空机票价格监控脚本 ---")
     config = load_config()
     if not config: logging.error("配置加载失败，脚本终止。"); return
 
@@ -307,7 +303,7 @@ async def main():
 
     html = await fetch_html_with_playwright(target_url, BASE_URL) # 传入基础 URL
 
-    screenshot_notice = f"\n\n**请查看截图: {SCREENSHOT_PATH}**" if not IS_GITHUB_ACTIONS else "" # Actions 中不提示看本地截图
+    screenshot_notice = f"\n\n**请查看截图: {SCREENSHOT_PATH}**"  # 移除 GitHub Actions 条件判断
 
     if html:
         current_price = parse_price(html, target_flight)
